@@ -46,39 +46,35 @@
 
         <script>
 
-            const getWorkouts = () => {
-                const workoutReq = new XMLHttpRequest()
-                workoutReq.onreadystatechange = function() {
-                    if (this.readyState == 4 && this.status == 200) {
-                        // console.log(this.responseText)
-                        if (/^Error/.test(this.responseText)) {
-                            alert("Error:\n"+this.responseText)
-                        } else {
-                            const data = JSON.parse(this.responseText)
-                            const workoutsArray = data.workouts
-                            const exercisesArray = data.exercises
-                            const setsArray = data.sets
-                            fitnessApp.workouts = {}
-                            fitnessApp.exercises = {}
-                            fitnessApp.sets = {}
-                            workoutList.innerHTML = ""
-                            for (let w of workoutsArray) {
-                                fitnessApp.workouts[w.id] = w
-                                fitnessApp.workouts[w.id].exercises = {}
-                            }
-                            populateWorkoutsList()
-                            for (let e of exercisesArray) {
-                                fitnessApp.workouts[e.workout_id].exercises[e.id] = e
-                                fitnessApp.exercises[e.id] = e
-                            }
-                            for (let s of setsArray) {
-                                fitnessApp.sets[s.id] = s
-                            }
-                        }
+            const getWorkouts = async () => {
+
+                const res = await fetch("getworkouts")
+                console.log(res)
+                const resText = await res.text()
+                if (res.status != 200 || /^Error/.test(resText)) {
+                    alert("Error:\n"+resText)
+                } else {
+                    const data = JSON.parse(resText)
+                    const workoutsArray = data.workouts
+                    const exercisesArray = data.exercises
+                    const setsArray = data.sets
+                    fitnessApp.workouts = {}
+                    fitnessApp.exercises = {}
+                    fitnessApp.sets = {}
+                    workoutList.innerHTML = ""
+                    for (let w of workoutsArray) {
+                        fitnessApp.workouts[w.id] = w
+                        fitnessApp.workouts[w.id].exercises = {}
+                    }
+                    populateWorkoutsList()
+                    for (let e of exercisesArray) {
+                        fitnessApp.workouts[e.workout_id].exercises[e.id] = e
+                        fitnessApp.exercises[e.id] = e
+                    }
+                    for (let s of setsArray) {
+                        fitnessApp.sets[s.id] = s
                     }
                 }
-                workoutReq.open("GET", "getworkouts", true)
-                workoutReq.send()
             }
             function populateWorkoutsList() {
                 workoutList.innerHTML = ""

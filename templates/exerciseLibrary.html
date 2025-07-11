@@ -129,7 +129,7 @@
             })
         }
 
-        function updateMovement(form) {
+        async function updateMovement(form) {
             const e = {
                 update: "movements",
                 id: (form.querySelector("#exerciseId").value == "" ? null : Number(form.querySelector("#exerciseId").value.trim())),
@@ -145,28 +145,28 @@
                 alert("Finish filling out form or cancel.")
                 return
             }
-            const exerciseReq = new XMLHttpRequest()
-            exerciseReq.onreadystatechange = function() {
-                if (this.readyState == 4 && this.status == 200) {
-                    fitnessApp.movements[e.id] = {
-                        id: e.id,
-                        name: e.fields.name,
-                        alternative_names: e.fields.alternative_names,
-                        target: e.fields.target,
-                        type: e.fields.type,
-                        notes: e.fields.notes
-                    }
-                    movementList.innerHTML = ""
-                    const orderedByName = Object.keys(fitnessApp.movements).sort((a,b) => fitnessApp.movements[a].name.localeCompare(fitnessApp.movements[b].name))
-                    for (let m of orderedByName) {
-                        movementList.innerHTML += `\n<div onclick="openMovementForm(${m})">${fitnessApp.movements[m].name}</div>\n`
-                    }
-                    form.parentElement.remove()
+
+            const res = await fetch("update", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify(e)
+            })
+            if (res.status === 200) {
+                fitnessApp.movements[e.id] = {
+                    id: e.id,
+                    name: e.fields.name,
+                    alternative_names: e.fields.alternative_names,
+                    target: e.fields.target,
+                    type: e.fields.type,
+                    notes: e.fields.notes
                 }
-            }
-            exerciseReq.open("POST", "update", true)
-            exerciseReq.setRequestHeader("Content-type", "application/json")
-            exerciseReq.send(JSON.stringify(e))
+                movementList.innerHTML = ""
+                const orderedByName = Object.keys(fitnessApp.movements).sort((a,b) => fitnessApp.movements[a].name.localeCompare(fitnessApp.movements[b].name))
+                for (let m of orderedByName) {
+                    movementList.innerHTML += `\n<div onclick="openMovementForm(${m})">${fitnessApp.movements[m].name}</div>\n`
+                }
+                form.parentElement.remove()
+            } else alert("Error during update:\n"+(await res.text()))
         }
 
         function makeMovementTile(movements) {
@@ -181,18 +181,17 @@
         exerciseNotes.style.height = 0
         exerciseNotes.style.height = exerciseNotes.scrollHeight+'px'
 
-        const exerciseReq = new XMLHttpRequest()
-        exerciseReq.onreadystatechange = function() {
-            if (this.readyState == 4 && this.status == 200) {
-                // console.log(this.responseText)
-                const movements = JSON.parse(this.responseText)
+        async function getMovements() {
+            const movementsResponse = await fetch("getmovementlist")
+            const movementsText = await movementsResponse.text()
+            if (movementsResponse.status === 200) {
+                const movements = JSON.parse(movementsText)
                 fitnessApp.movements = {}
-                for (let m of movements) {
-                    fitnessApp.movements[m.id] = m
-                }
+                for (let m of movements) fitnessApp.movements[m.id] = m
                 makeMovementTile(movements)
+            } else {
+                alert("Error while getting movements list:\n"+(movementsText))
             }
         }
-        exerciseReq.open("GET", "getmovementlist", true)
-        exerciseReq.send()
+        getMovements()
     </script>

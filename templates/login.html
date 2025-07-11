@@ -8,26 +8,22 @@
     <meta name="viewport" content="viewport-fit=cover, width=device-width, initial-scale=1, maximum-scale=1">
 
     <script>
-        function login() {
-            console.log('fired login')
+        async function login() {
             const username = inputuser.value
             const password = inputpassword.value
 
-            const req = new XMLHttpRequest()
-            req.onreadystatechange = function() {
-                if (this.readyState !== 4) return
-                console.log(this)
-                try {
-                    const reply = JSON.parse(this.responseText)
-                    if (reply.error) errorDiv.innerText = reply.error
-                    else if (reply.redirect) location.href = reply.redirect
-                } catch (err) {
-                    alert("Malformed response:\n"+this.responseText)
-                }
+            const res = await fetch("login", {
+                method: "POST",
+                body: JSON.stringify({username: username, password: password})
+            })
+            const resText = await res.text()
+            try {
+                const reply = JSON.parse(resText)
+                if (reply.error) errorDiv.innerText = reply.error
+                else if (reply.redirect) location.href = reply.redirect
+            } catch (err) {
+                alert("Malformed response:\n"+resText)
             }
-            req.open("POST","login",true)
-            req.send(JSON.stringify({username: username, password: password}))
-
         }
     </script>
 </head>
