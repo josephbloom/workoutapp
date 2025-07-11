@@ -1,0 +1,198 @@
+    <div id="movements" class="mainView" viewtitle="M">
+
+        <style>
+
+        #movementList {
+            width: 80%;
+            display: flex;
+            flex-wrap: wrap;
+            column-gap: 1rem;
+            row-gap: 1rem;
+            margin: auto;
+            justify-content: center;
+            /* background: yellow; */
+        }
+        @media (max-width: 520px) {
+            #movementList {width: 95%;}
+        }
+        #movementList > div {
+            border: 1px solid #c44;
+            padding: 1rem;
+            cursor: pointer;
+            text-align: center;
+            color: #e0e0e0;
+            background: #5D1A1A;
+            /* flex: 1 1 0px; */
+            white-space: nowrap;
+        }
+        #movementsForm {
+            /* border: 1px solid black; */
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            row-gap: 1rem;
+            margin: auto;
+            min-width: fit-content;
+            width: 100%;
+            min-height: fit-content;
+            height: 100vh;
+            /* position: absolute;
+            top: 10vh;
+            left: 10vw;
+            width: 80vw;
+            height: 80vh;
+            z-index: 100; */
+            background: #777;
+        }
+        #exerciseNotes {
+            resize: none;
+            padding: 5px;
+            align-self: stretch;
+            overflow: scroll;
+            flex-grow: 1;
+        }
+
+        #movementsForm > input, #movementsForm > textarea, #movementsForm > select {
+            background: #bbb;
+            border: 1px solid #444;
+        }
+        #movementsForm > input::placeholder, #movementsForm > textarea::placeholder {color: #666}
+        </style>
+
+        <div class="header" style="justify-content: center">
+            <button class="btn longbtn" onclick="openMovementForm()">New Exercise</button>
+        </div>
+
+        <div id="movementList"></div>
+
+        <div id="exerciseFormContainer" style="position: absolute; width: 100vw; height: 100vh; top: 0; left: 0; background: #00000070; z-index: 100; display: none;">
+            <div id="movementsForm">
+                <input type="hidden" id="exerciseId">
+                <input type="text" id="exerciseName" placeholder="Exercise Name...">
+                <input type="text" id="alternativeNames" placeholder="Alternative Names...">
+                <input type="text" id="exercisetarget" placeholder="Target Area...">
+                <select id="exercisetype">
+                    <option value="">Select Type</option>
+                    <option value="bilateral">Bilateral</option>
+                    <option value="unilateral">Unilateral</option>
+                    <option value="cardio">Cardio</option>
+                </select>
+                <textarea id="exerciseNotes" placeholder="Exercise Notes..."></textarea>
+                <div style="display: flex; justify-content: center; column-gap: 2rem;">
+                    <button class="btn longbtn affirmative" id="movementsCancel" onclick="document.querySelectorAll('#exerciseFormContainer')[1].remove()">Cancel</button>
+                    <button class="btn longbtn affirmative" id="movementsSubmit">Submit</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function openMovementForm(e=null) {
+            const f = exerciseFormContainer.cloneNode(true)
+            f.style.display = 'flex'
+            document.body.appendChild(f)
+
+            if (e) {
+                e = fitnessApp.movements[e]
+                f.querySelector("#exerciseId").value = e.id
+                f.querySelector("#exerciseName").value = e.name
+                f.querySelector("#alternativeNames").value = e.alternative_names.join(", ")
+                f.querySelector("#exercisetarget").value = e.target
+                f.querySelector("#exercisetype").value = e.type
+                f.querySelector("#exerciseNotes").value = e.notes
+                f.querySelector("#movementsSubmit").setAttribute("onclick","updateMovement(this.parentElement.parentElement)")
+            } else {
+                f.querySelector("#movementsSubmit").setAttribute("onclick","newMovement(this.parentElement.parentElement)")
+            }
+        }
+        function newMovement(form) {
+            const m = {
+                new: "movement",
+                name: form.querySelector("#exerciseName").value.trim(),
+                alternative_names: form.querySelector("#alternativeNames").value.trim().split(/, ?/),
+                target: form.querySelector("#exercisetarget").value.trim(),
+                type: form.querySelector("#exercisetype").value.trim(),
+                notes: form.querySelector("#exerciseNotes").value.trim()
+            }
+            if ([m.name, m.target, m.type].includes("")) {
+                alert("Finish filling out form or cancel.")
+                return
+            }
+            requestAction("new", m, (responseText) => {
+                const movements = JSON.parse(responseText).data
+                fitnessApp.movements = {}
+                for (let m of movements) {
+                    fitnessApp.movements[m.id] = m
+                }
+                makeMovementTile(movements)
+                form.parentElement.remove()
+            })
+        }
+
+        function updateMovement(form) {
+            const e = {
+                update: "movements",
+                id: (form.querySelector("#exerciseId").value == "" ? null : Number(form.querySelector("#exerciseId").value.trim())),
+                fields: {
+                    name: form.querySelector("#exerciseName").value.trim(),
+                    alternative_names: form.querySelector("#alternativeNames").value.trim().split(/, ?/),
+                    target: form.querySelector("#exercisetarget").value.trim(),
+                    type: form.querySelector("#exercisetype").value.trim(),
+                    notes: form.querySelector("#exerciseNotes").value.trim()
+                }
+            }
+            if ([e.fields.name, e.fields.target, e.fields.type].includes("")) {
+                alert("Finish filling out form or cancel.")
+                return
+            }
+            const exerciseReq = new XMLHttpRequest()
+            exerciseReq.onreadystatechange = function() {
+                if (this.readyState == 4 && this.status == 200) {
+                    fitnessApp.movements[e.id] = {
+                        id: e.id,
+                        name: e.fields.name,
+                        alternative_names: e.fields.alternative_names,
+                        target: e.fields.target,
+                        type: e.fields.type,
+                        notes: e.fields.notes
+                    }
+                    movementList.innerHTML = ""
+                    const orderedByName = Object.keys(fitnessApp.movements).sort((a,b) => fitnessApp.movements[a].name.localeCompare(fitnessApp.movements[b].name))
+                    for (let m of orderedByName) {
+                        movementList.innerHTML += `\n<div onclick="openMovementForm(${m})">${fitnessApp.movements[m].name}</div>\n`
+                    }
+                    form.parentElement.remove()
+                }
+            }
+            exerciseReq.open("POST", "update", true)
+            exerciseReq.setRequestHeader("Content-type", "application/json")
+            exerciseReq.send(JSON.stringify(e))
+        }
+
+        function makeMovementTile(movements) {
+            movementList.innerHTML = ""
+            // console.log(exercises)
+            for (let m of movements) {
+                // console.log(e)
+                movementList.innerHTML += `\n<div onclick="openMovementForm(${m.id})">${m.name}</div>\n`
+            }
+        }
+        
+        exerciseNotes.style.height = 0
+        exerciseNotes.style.height = exerciseNotes.scrollHeight+'px'
+
+        const exerciseReq = new XMLHttpRequest()
+        exerciseReq.onreadystatechange = function() {
+            if (this.readyState == 4 && this.status == 200) {
+                // console.log(this.responseText)
+                const movements = JSON.parse(this.responseText)
+                fitnessApp.movements = {}
+                for (let m of movements) {
+                    fitnessApp.movements[m.id] = m
+                }
+                makeMovementTile(movements)
+            }
+        }
+        exerciseReq.open("GET", "getmovementlist", true)
+        exerciseReq.send()
+    </script>

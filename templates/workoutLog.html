@@ -1,0 +1,980 @@
+    <div id="workoutLog" class="mainView" viewtitle="WL">
+
+
+        <button class="btn squarebtn" onclick="openNewWorkoutForm('New Workout Name','submitNewWorkout()')" style="position: fixed; bottom: 10px; right: 10px;">+</button>
+
+        <!-- <div class="header" style="justify-content: center">
+        </div> -->
+
+        <style>
+            #workoutList {
+                display: flex;
+                flex-direction: column;
+                row-gap: 3px;
+                align-items: stretch;
+                /* background: salmon; */
+                width: fit-content;
+                margin: 10px 0;
+                /* min-width: 50%; */
+            }
+            #workoutList > div {
+                border: 1px solid #c44;
+                padding: 5px;
+                cursor: pointer;
+                text-align: center;
+                color: #e0e0e0;
+                background: #5D1A1A;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                column-gap: 1rem;
+                width: 100%;
+                column-gap: 3rem;
+            }
+            @media (max-width: 520px) {
+                #workoutList {width: 97%;}
+                #workoutList > div {column-gap: 0;}
+            }
+            /* #workoutList > div > div:first-child {flex-grow: 1;} */
+        </style>
+        <div id="workoutList"></div>
+
+
+
+        <!-- Make this an inline svg with <svg> to change the color with "fill" in CSS -->
+        <!-- <img class="icon header-icon" src="img/library.svg"> -->
+
+        <script>
+
+            const getWorkouts = () => {
+                const workoutReq = new XMLHttpRequest()
+                workoutReq.onreadystatechange = function() {
+                    if (this.readyState == 4 && this.status == 200) {
+                        // console.log(this.responseText)
+                        if (/^Error/.test(this.responseText)) {
+                            alert("Error:\n"+this.responseText)
+                        } else {
+                            const data = JSON.parse(this.responseText)
+                            const workoutsArray = data.workouts
+                            const exercisesArray = data.exercises
+                            const setsArray = data.sets
+                            fitnessApp.workouts = {}
+                            fitnessApp.exercises = {}
+                            fitnessApp.sets = {}
+                            workoutList.innerHTML = ""
+                            for (let w of workoutsArray) {
+                                fitnessApp.workouts[w.id] = w
+                                fitnessApp.workouts[w.id].exercises = {}
+                            }
+                            populateWorkoutsList()
+                            for (let e of exercisesArray) {
+                                fitnessApp.workouts[e.workout_id].exercises[e.id] = e
+                                fitnessApp.exercises[e.id] = e
+                            }
+                            for (let s of setsArray) {
+                                fitnessApp.sets[s.id] = s
+                            }
+                        }
+                    }
+                }
+                workoutReq.open("GET", "getworkouts", true)
+                workoutReq.send()
+            }
+            function populateWorkoutsList() {
+                workoutList.innerHTML = ""
+                const workouts= fitnessApp.workouts
+                // for (let wid of Object.keys(workouts).sort((a,b) => b-a)) {
+                for (let wid of Object.keys(workouts).sort((a,b) => workouts[a].date < workouts[b].date)) {
+                    const workout = fitnessApp.workouts[wid]
+                    workoutList.innerHTML += `
+                        <div workoutId='${wid}' onclick='openWorkoutForm(${wid})'>
+                                <div>${workout.name}</div><div>${getDisplayDate(workout.date)}</div>
+                        </div>
+                    `
+                }
+            }
+            getWorkouts()
+        </script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        <!--- EDIT WORKOUT FORM --->
+
+        <script>
+            function openWorkoutForm(id) {
+                const workout = fitnessApp.workouts[id]
+                console.log(workout)
+                workoutForm.style.display = "flex"
+                workoutForm.querySelector("#workoutName").innerText = workout.name
+                workoutForm.querySelector("#workoutNameInput").value = workout.name
+                // `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()+1).padStart(2,"0")}`
+                // `${d.getHours()}:${d.getMinutes()}`
+                const d = new Date(workout.date)
+                // workoutForm.querySelector("#workoutDate").innerText = workout.date
+
+                const date = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`
+                const time = `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`
+                // const [date, time] = workout.date.slice(0,19).split("T")
+                workoutForm.querySelector("#workoutDateInput").value = date
+                workoutForm.querySelector("#workoutDateInput").setAttribute("prevValue", date)
+                workoutForm.querySelector("#workoutTimeInput").value = time
+                workoutForm.querySelector("#workoutTimeInput").setAttribute("prevValue", time)
+                workoutForm.querySelector("#currentWorkout").value = id
+                workoutForm.querySelector("#addExerciseButton").setAttribute("onclick",`openNewExerciseForm(${id})`)
+                const notesInput = workoutForm.querySelector("textarea")
+                notesInput.value = ""
+                if (workout.notes) notesInput.value = workout.notes
+                notesInput.setAttribute("prevValue",notesInput.value)
+                notesInput.style.height = "0px"
+                notesInput.style.height = notesInput.scrollHeight+"px"
+                populateExerciseList(id)
+            }
+
+            function makeSetSummary(exercise) {
+                return exercise.set_ids.map((sid) => {
+                    const setType = exercise.set_type
+                    const movementType = fitnessApp.movements[exercise.movement_id].type
+                    const set = fitnessApp.sets[sid];
+                    const weight = set.weight == null ? 0 : set.weight
+                    const reps = set.reps == null ? 0 : set.reps
+                    const reps_right = set.reps_right == null ? 0 : set.reps_right
+                    const reps_left = set.reps_left == null ? 0 : set.reps_left
+                    const myo_reps = set.myo_reps //== null ? 0 : set.myo_reps
+                    const myoreps_right = set.myoreps_right //== null ? 0 : set.myoreps_right
+                    const myoreps_left = set.myoreps_left //== null ? 0 : set.myoreps_left
+                    const dropped_weight = set.dropped_weight == null ? 0 : set.dropped_weight
+                    const dropped_reps = set.dropped_reps //== null ? 0 : set.dropped_reps
+                    const dropped_reps_left = set.dropped_reps_left == null ? 0 : set.dropped_reps_left
+                    const dropped_reps_right = set.dropped_reps_right == null ? 0 : set.dropped_reps_right
+
+                    if (movementType == "bilateral") {
+                        if ( setType == "regular") return weight+"-"+reps;
+                        else if (setType == "myo") return weight+"-"+reps+(myo_reps == null ? "" : ":"+myo_reps)
+                        else if (setType == "drop") return weight+"-"+reps+(dropped_reps == null ? "" : "/"+dropped_weight+"-"+dropped_reps)
+                    } else if (movementType == "unilateral") {
+                        if ( setType == "regular") return weight+"-"+reps_right+"-"+reps_left;
+                        else if (setType == "myo") return weight+"-"+reps_right+(myoreps_right == null ? "" : ":"+myoreps_right)+"-"+reps_left+(myoreps_left == null ? "" : ":"+myoreps_left)
+                        else if (setType == "drop") return weight+"-"+reps_right+("/"+dropped_weight+"-"+dropped_reps_right)+"_"+weight+"-"+reps_left+"/"+dropped_weight+"-"+dropped_reps_left
+                    }
+                }).map((s) => "<div>"+s+"</div>").join("\n")
+            }
+
+            function populateExerciseList(workoutId) {
+                exerciseList.innerHTML = ""
+                for (let eid of fitnessApp.workouts[workoutId].exercise_ids) {
+                    const exercise = fitnessApp.exercises[eid]
+                    exerciseList.innerHTML += `
+                        <div exerciseId=${eid}>
+                            <div style="display:flex; flex-direction: column; justify-content: center; row-gap: 0.5rem; height: 100%;">
+                                <div onclick=shiftExercise(${workoutId},${eid},'up')>&#9650;</div>
+                                <div onclick=shiftExercise(${workoutId},${eid},'down')>&#9660;</div>
+                            </div>
+                            <div onclick="openExercise(${workoutId},${eid})" style="">
+                                <div>${fitnessApp.movements[fitnessApp.exercises[eid].movement_id].name}</div>
+                                <div class="setsSummary">
+                                    ${makeSetSummary(exercise)}
+                                </div>
+                            </div>
+                            <div onclick=deleteExercise(${eid}) class="xbtn"></div>
+                        </div>
+                    `
+                }
+            }
+
+            const closeWorkoutForm = () => workoutForm.style.display='none'
+            function editWorkoutName() {
+                workoutName.style.display = "none"
+                workoutNameInput.style.display = "inline-block"
+                workoutNameInput.focus()
+            }
+            function submitWorkoutName() {
+                workoutName.style.display = "block"
+                workoutNameInput.style.display = "none"
+                const value = workoutNameInput.value.trim()
+                const workoutId = Number(workoutForm.querySelector("#currentWorkout").value)
+                updateRequest("workouts", "name", value, workoutId, () => {
+                    workoutName.innerText = value
+                    fitnessApp.workouts[workoutId].name = value
+                    populateWorkoutsList()
+                })
+            }
+            function shiftExercise(workoutId, exerciseId, direction) {
+                const targetList = fitnessApp.workouts[workoutId].exercise_ids
+                if (
+                    (direction == "up" && targetList[0] == exerciseId) ||
+                    (direction == "down" && targetList[targetList.length-1] == exerciseId)
+                ) return
+                const exerciseToSwap = targetList[targetList.indexOf(exerciseId)+{"up":-1,"down":1}[direction]]
+                const newList = targetList.with(targetList.indexOf(exerciseToSwap),exerciseId).with(targetList.indexOf(exerciseId),exerciseToSwap)
+                updateRequest("workouts","exercise_ids",newList,workoutId, () => {
+                    fitnessApp.workouts[workoutId].exercise_ids = newList
+                    populateExerciseList(workoutId)
+                })
+            }
+
+            function deleteWorkout(wid) {
+                wid = Number(wid)
+                const workout = fitnessApp.workouts[wid]
+                if (!confirm(`Delete "${workout.name}"?`)) return
+                // const exerciseIds = workout.exercise_ids
+                // const setIds = [].concat(...exerciseIds.map((e) => fitnessApp.exercises[e].set_ids))
+                // https://stackoverflow.com/questions/43455911/using-es6-spread-to-concat-multiple-arrays
+                requestAction("delete", {delete: "workout", id: wid}, (responseText) => {
+                    const r = JSON.parse(responseText)
+                    // console.log(r)
+                    if (r.result) {
+                        for (let sid of r.data.setIds) delete fitnessApp.sets[sid]
+                        for (let eid of r.data.exerciseIds) delete fitnessApp.exercises[eid]
+                        delete fitnessApp.workouts[r.data.workoutId]
+                        workoutList.querySelector(`[workoutId="${r.data.workoutId}"`).remove()
+                        closeWorkoutForm()
+                    }
+                })
+            }
+
+            function updateWorkoutDate(d,t,workoutId) {
+                const oldDate = new Date(fitnessApp.workouts[workoutId].date)
+                const newDate = new Date(d+" "+t).toISOString().slice(0,19).replace("T"," ")
+                updateRequest('workouts','date',newDate,workoutId, () => {
+                    fitnessApp.workouts[workoutId].date = newDate.replace(" ","T")+"Z"
+                    workoutDateInput.attributes.prevValue.value = d
+                    workoutTimeInput.attributes.prevValue.value = t
+                    populateWorkoutsList()
+                })
+            }
+        </script>
+
+        <style>
+            #workoutForm {
+                background-color: #272727;
+                display: none;
+                flex-direction: column;
+                align-items: center;
+                position: fixed;
+                top: 0;
+                left: 0;
+                height: 100vh;
+                width: 100vw;
+                overflow-y: scroll;
+                padding: 1rem 0;
+                row-gap: 1rem;
+            }
+            .exerciseList {
+                display: flex;
+                flex-direction: column;
+                row-gap: 5px;
+                width: 95%;
+            }
+            .exerciseList > div {
+                padding: 5px;
+                border: 1px solid #c44;
+                cursor: pointer;
+                color: #e0e0e0;
+                background: #5D1A1A;
+                display: flex;
+                align-items: center;
+                column-gap: 1rem;
+                position: relative;
+            }
+            .exerciseList > div > div:nth-child(2) {flex-grow: 1;}
+            #workoutForm input[type='text'], #workoutForm textarea {
+                background: #bbb;
+                border: 1px solid #444;
+            }
+            #workoutForm #workoutName, #workoutForm #workoutDate {
+                color: #e0e0e0;
+                cursor: pointer;
+            }
+            #workoutForm #workoutName, #workoutForm #workoutNameInput {
+                text-align: center;
+                font-size: 1.5rem;
+            }
+            .setsSummary {display: flex; column-gap: 1rem; flex-wrap: wrap;}
+            .setsSummary > div {white-space: nowrap;}
+        </style>
+
+        <div id="workoutForm">
+            <input type="hidden" id="currentWorkout">
+            <div style="display: flex; justify-content: space-between; width: 90%">
+                <button class="btn longbtn" onclick="closeWorkoutForm()">Back</button>
+                <button class="btn longbtn" onclick="deleteWorkout(currentWorkout.value)">Erase</button>
+            </div>
+            <div style="display: flex; flex-direction: column; width: 100%; justify-content: center; align-items: center; row-gap: 10px;">
+                <div id="workoutName" onclick="editWorkoutName()"></div>
+                <input type="text" id="workoutNameInput" onblur="submitWorkoutName()" onkeydown="if (event.key == 'Enter') this.blur()" style="display: none">
+                <div style="background:#e0e0e0; width: 60%; padding: 1px 0 0 0;"></div>
+                <!-- <div id="workoutDate"></div> -->
+                <div style="display: flex; column-gap: 1rem;">
+                    <div>
+                        <input type="date" id="workoutDateInput" style="white-space: nowrap;" onblur="if (this.value != this.attributes.prevValue.value) updateWorkoutDate(this.value,workoutTimeInput.value,currentWorkout.value)">
+                    </div>
+                    <div>
+                        <input type="time" id="workoutTimeInput" onblur="if (this.value != this.attributes.prevValue.value) updateWorkoutDate(workoutDateInput.value,this.value,currentWorkout.value)">
+                    </div>
+                </div>
+            </div>
+            </table>
+            <div id="exerciseList" class="exerciseList"></div>
+            <button class="btn longbtn" id="addExerciseButton">Add Exercise</button>
+            <textarea style="width: calc(log(10,15) * 100vw); line-height: 1.5em;" onblur="if (this.attributes.prevValue.value != this.value) updateRequest('workouts','notes',this.value,currentWorkout.value, () => {this.attributes.prevValue.value = this.value})" placeholder="notes..."></textarea>
+        </div>
+
+
+
+
+
+
+
+
+
+
+
+
+        <!--- NEW WORKOUT FORM --->
+
+        <style>
+            .newEntryForm {
+                background: #ccffcc;
+                display: none;
+                flex-direction: column;
+                /* justify-content: space-around; */
+                align-items: center;
+                position: fixed;
+                top: 0;
+                left: 0;
+                height: 100vh;
+                width: 100vw;
+                box-shadow: 0px 2px black inset, 0px -2px black inset;
+                row-gap: 2rem;
+                padding: 1rem 0;
+            }
+            .newEntryForm input {width: 60%;}
+            .newEntryForm > h2 {text-align: center;}
+            .newEntryForm > .formButtonArray {display: flex; column-gap: 30px; justify-content: center; margin-top: auto}
+        </style>
+
+        <script>
+            const openNewWorkoutForm = (title, callback) => {
+                newWorkoutForm.style.display='flex'
+                newWorkoutForm.querySelector("h2").innerText = title
+                newWorkoutForm.setAttribute("callback",callback)
+            }
+            const closeNewWorkoutForm = () => newWorkoutForm.style.display='none'
+            const submitNewWorkout = () => {
+                const newWorkout = newWorkoutForm.querySelector("[name='newWorkoutName']").value
+                if (!newWorkout) {
+                    alert("New workout name cannot be blank")
+                    return
+                }
+                const w = {new: "workout", name: newWorkout}
+                requestAction("new", w, (responseText) => {
+                    const workout = JSON.parse(responseText).data
+                    closeNewWorkoutForm()
+                    newWorkoutForm.querySelector("[name='newWorkoutName']").value = ""
+                    getWorkouts()
+                    fitnessApp.workouts[workout.id] = workout
+                    openWorkoutForm(workout.id)
+                })
+                submitFormButton.innerText = "Sending"
+            }
+        </script>
+
+        <div id="newWorkoutForm" class="newEntryForm">
+            <h2></h2>
+            <input type="text" name="newWorkoutName" onkeydown="if (event.key == 'Enter') eval(this.parentElement.attributes.callback.value)">
+            <div class="formButtonArray">
+                <button class="btn longbtn" id="newWorkoutFormCancel" onclick="closeNewWorkoutForm()">Cancel</button>
+                <button class="btn longbtn" id="submitFormButton" onclick="eval(this.parentElement.parentElement.attributes.callback.value)">Submit</button>
+            </div>
+        </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        <!--- NEW WORKOUT EXERCISE FORM --->
+
+        <script>
+            const openNewExerciseForm = (workoutId) => {
+                newExerciseForm.style.display='flex'
+                newExerciseForm.querySelector("#workoutId").value = workoutId
+                newExerciseForm.querySelector("h2").innerText = `Add Exercise to "${fitnessApp.workouts[workoutId].name}"`
+            }
+            const closeNewExerciseForm = () => newExerciseForm.style.display='none'
+            const populateSuggestions = (q) => {
+                q = q.trim()
+                if (selectedMovement.value && JSON.parse(selectedMovement.value)["name"] != q) {
+                    newExerciseForm.querySelector("#checkbox").style.display = "none";
+                    selectedMovement.value = ""
+                }
+                if (!q) {
+                    newExerciseForm.querySelector("#suggestionsDiv").innerHTML = ""
+                    return
+                }
+                q = q.toLowerCase()
+                const exerciseOptions = []
+                for (let i in fitnessApp.movements) {
+                    const m = fitnessApp.movements[i]
+                    if (m.name.toLowerCase().includes(q)) exerciseOptions.push(m)
+                    else {
+                        for (let n of m.alternative_names) {
+                            if (n.toLowerCase().includes(q)) {
+                                exerciseOptions.push(m)
+                                break
+                            }
+                        }
+                    }
+                    // const names = m.alternative_names.concat([m.name])
+                    // for (let n of names) {
+                    //     if (n.toLowerCase().includes(q)) exerciseOptions.push({"name":n, "id":i})
+                    // }
+                }
+                // exerciseOptions.sort((a,b) => a.name - b.name)
+                exerciseOptions.sort((a,b) => a.name - b.name)
+                const listDiv = newExerciseForm.querySelector("#suggestionsDiv")
+                listDiv.innerHTML = ""
+                for (let m of exerciseOptions) {
+                    listDiv.innerHTML += `\n<div class="exerciseOption" onclick='selectExerciseOption(\`{"name":"${m.name}","id":"${m.id}"}\`)'>${m.name}</div>`
+                    for (let a of m.alternative_names) {
+                        if (a.toLowerCase().includes(q)) {
+                            listDiv.innerHTML += `\n<div class="exerciseOption greyed" onclick='selectExerciseOption(\`{"name":"${m.name}","id":"${m.id}"}\`)'>${a}</div>`
+                        }
+                    }
+                }
+                listDiv.innerHTML += `\n<div class="exerciseOption" onclick="openMovementForm()">+ New Exercise</div>`
+            }
+            const selectExerciseOption = (e) => {
+                newExerciseForm.querySelector('input[name="movementName"]').value = JSON.parse(e).name
+                newExerciseForm.querySelector('#selectedMovement').value = e
+                newExerciseForm.querySelector("#suggestionsDiv").innerHTML = ""
+                newExerciseForm.querySelector("#checkbox").style.display = "block";
+            }
+            const closeExerciseOptions = () => {
+                // clicked away from exercise input. Check if one of the options was clicked and return if so
+                // because blur happens before focus event.
+                let target = event.explicitOriginalTarget
+                if (target.nodeType === Node.TEXT_NODE) target = target.parentElement
+                if (target.classList.contains("exerciseOption")) return
+                newExerciseForm.querySelector("#suggestionsDiv").innerHTML = ""
+            }
+            const submitExercise = () => {
+                const workoutId = newExerciseForm.querySelector("#workoutId").value
+                const e = {
+                    new: "exercise",
+                    movementId: JSON.parse(newExerciseForm.querySelector("#selectedMovement").value).id,
+                    workoutId: workoutId,
+                    currentExercises: fitnessApp.workouts[workoutId].exercise_ids
+                }
+                if (!e.movementId) {
+                    alert("No movement was confirmed.")
+                    return
+                }
+                submitExerciseButton.innerText = "Sending"
+                requestAction("new", e, (responseText) => {
+                    console.log(responseText)
+                    submitExerciseButton.innerText = "Submit"
+                    const e = JSON.parse(responseText).data
+                    fitnessApp.workouts[e.workout_id].exercise_ids.push(e.id)
+                    fitnessApp.exercises[e.id] = e
+                    newExerciseForm.querySelector("#selectedMovement").value = ""
+                    specialInput.querySelector("[name='movementName']").value = ""
+                    specialInput.querySelector("#checkbox").style.display = "none"
+                    closeNewExerciseForm()
+                    openWorkoutForm(e.workout_id)
+                    exerciseList.querySelector(`[exerciseId='${e.id}']`).scrollIntoView({ behavior: "instant", block: "nearest"});
+                })
+            }
+        </script>
+
+        <style>
+            #newExerciseForm > #specialInput {
+                display: flex;
+                flex-direction: column;
+                width: 60%;
+                position: relative;
+            }
+            
+            @media (max-width: 520px) {
+                #newExerciseForm > #specialInput {width: 90%;}
+            }
+            #newExerciseForm > #specialInput > * {width: 100%;}
+            #newExerciseForm #suggestionsDiv > div {
+                width: 100%;
+                border-right: 1px black solid;
+                border-left: 1px black solid;
+                border-bottom: 1px black solid;
+                background: #fff;
+                padding: 5px;
+                cursor: pointer;
+            }
+            #newExerciseForm #suggestionsDiv > div.greyed {color:#aaa; padding-left: 2rem;}
+            #newExerciseForm #suggestionsDiv > div:hover {filter: brightness(92%);}
+        </style>
+
+        <div id="newExerciseForm" class="newEntryForm">
+            <h2>Add Workout Exercise</h2>
+            <input id="selectedMovement" type="hidden">
+            <input id="workoutId" type="hidden">
+            <div id="specialInput">
+                <div style="display: flex; align-items: center;">
+                    <div id="checkbox" style="display: none; position: absolute; right: 10px; font-size: 1.5rem; line-height: 1.5rem;">&#9745;</div>
+                    <input style="width: 100%;" type="text" name="movementName" oninput="populateSuggestions(this.value)" onfocus="populateSuggestions(this.value)" onblur="closeExerciseOptions()">
+                </div>
+                <div style="width: 100%;" id="suggestionsDiv"></div>
+            </div>
+            <div class="formButtonArray">
+                <button class="btn longbtn" id="newWorkoutFormCancel" onclick="closeNewExerciseForm()">Cancel</button>
+                <button class="btn longbtn" id="submitExerciseButton" onclick="submitExercise()">Submit</button>
+            </div>
+        </div>
+
+
+    </div>
+
+
+
+
+    <!--- WORKOUT SETS FORM --->
+
+    <script>
+
+        function openExercise(wid,eid) {
+            const workout = fitnessApp.workouts[wid]
+            const exercise = fitnessApp.exercises[eid]
+            const movement = fitnessApp.movements[exercise.movement_id]
+            currentExercise.value = eid
+            currentMovement.value = movement.id
+            sets_table.setAttribute("movementtype",movement.type)
+            // setsTitle.innerText = `${movement.name} in ${workout.name}`
+            setsTitle.innerText = `${movement.name}`
+            setTypeButton.setAttribute("type",exercise.set_type)
+            for (let e of sets_table.querySelectorAll("tbody")) e.remove()
+            workoutSetsForm.style.display = "flex" // display the form, must happen before textarea resize
+            for (let sid of exercise.set_ids) addSetRow(sid, false)
+
+            displaySetType()
+        }
+
+        function closeExercise() {
+            workoutSetsForm.style.display = "none"
+        }
+
+        function displaySetType() {
+            let currentMode = setTypeButton.attributes.type.value
+            setTypeButton.innerText = currentMode.charAt(0).toUpperCase() + currentMode.slice(1)
+            sets_table.className = currentMode
+            if (currentMode == "regular") {
+                workoutSetsForm.querySelectorAll("tr.setnotesrow > td").forEach((td) => {
+                    if (sets_table.attributes.movementtype.value == "unilateral") td.attributes.colspan.value = "3"
+                    else if (sets_table.attributes.movementtype.value == "bilateral") td.attributes.colspan.value = "2"
+                })
+                workoutSetsForm.querySelectorAll("tr.setnumbersrow > td[rowspan]").forEach((td) => td.attributes.rowspan.value = "2")
+            } else if (currentMode == "drop") {
+                workoutSetsForm.querySelectorAll("tr.setnotesrow > td").forEach((td) => {
+                    if (sets_table.attributes.movementtype.value == "unilateral") td.attributes.colspan.value = "4"
+                    else if (sets_table.attributes.movementtype.value == "bilateral") td.attributes.colspan.value = "3"
+                })
+                workoutSetsForm.querySelectorAll("tr.setnumbersrow > td[rowspan]").forEach((td) => td.attributes.rowspan.value = "3")
+            } else if (currentMode == "myo") {
+                workoutSetsForm.querySelectorAll("tr.setnotesrow > td").forEach((td) => {
+                    if (sets_table.attributes.movementtype.value == "unilateral") td.attributes.colspan.value = "5"
+                    else if (sets_table.attributes.movementtype.value == "bilateral") td.attributes.colspan.value = "3"
+                })
+                workoutSetsForm.querySelectorAll("tr.setnumbersrow > td[rowspan]").forEach((td) => td.attributes.rowspan.value = "2")
+            }
+            setTypeButton.scrollIntoView({ behavior: "instant", block: "nearest"});
+        }
+
+        function addSet() {
+            const e = { new: "set", eid: currentExercise.value }
+            requestAction("new", e, (responseText) => {
+                console.log(responseText)
+                const result = JSON.parse(responseText)
+                if (result.result) {
+                    const exercise = fitnessApp.exercises[e.eid]
+                    exercise.set_ids.push(result.data.set_id)
+                    fitnessApp.sets[result.data.set_id] = result.data.set
+                    populateExerciseList(exercise.workout_id)
+                    addSetRow(result.data.set_id, true)
+                }
+            })
+            
+        }
+
+        function addSetRow(sid, scrollSetToView) {
+            console.log("sid is",sid)
+            const set = fitnessApp.sets[sid]
+            const setDiv = templateSetContainer.children[0].cloneNode(true)
+            sets_table.appendChild(setDiv)
+            setDiv.setAttribute("setid", sid)
+            for (let e of setDiv.querySelectorAll("input, textarea")) {
+                e.setAttribute("setid", sid)
+                let prevValue
+                set[e.name] === null ? prevValue = "" : prevValue = set[e.name]
+                e.value = set[e.name]
+                e.setAttribute("previousvalue", prevValue)
+                if (e.name == "notes") {
+                    e.style.height = 0;
+                    e.style.height = e.scrollHeight+"px"
+                }
+                // e.addEventListener("focus", (event) => event.target.scrollIntoView({ behavior: "instant", block: "nearest"}))
+                e.addEventListener("focus", (event) => {
+                    snapToActiveSet(event.currentTarget.parentElement.parentElement.parentElement)
+                })
+            }
+            setDiv.querySelector(".xbtn").setAttribute("onclick",`deleteSet(${sid})`)
+            if (scrollSetToView) {
+                console.log("scrolled!")
+                // setTypeButton.scrollIntoView({ behavior: "instant", block: "nearest"});
+                snapToActiveSet(setDiv)
+            }
+            numberTheSetRows()
+        }
+
+        function updateSet(inputElem) {
+            if (inputElem.value == inputElem.attributes.previousvalue.value) return // the value didn't change
+            const field = inputElem.name
+            const value = inputElem.value === '' && inputElem.name !== 'notes' ? null : inputElem.value
+            const setId = Number(inputElem.attributes.setid.value)
+            updateRequest("sets", field, value, setId, () => {
+                inputElem.attributes.previousvalue.value = inputElem.value
+                fitnessApp.sets[setId][field] = value
+                populateExerciseList(Number(currentWorkout.value))
+            })
+        }
+
+        function numberTheSetRows() {
+            const setRows = sets_table.querySelectorAll(".setRowNumber")
+            for (let i=1; i<=setRows.length; i++) setRows[i-1].innerHTML = i
+        }
+
+        function deleteSet(sid) {
+
+            if (!confirm("Delete this set?")) return
+
+            requestAction("delete", {delete: "set", id: sid}, (responseText) => {
+                const r = JSON.parse(responseText)
+                console.log(r)
+                if (r.result) {
+                    const sid = r.data.sid
+                    const eid = r.data.eid
+                    const exercise = fitnessApp.exercises[eid]
+                    delete fitnessApp.sets[sid]
+                    exercise.set_ids.splice(exercise.set_ids.indexOf(sid),1)
+                    populateExerciseList(exercise.workout_id)
+                    sets_table.querySelector(`tbody[setid='${sid}']`).remove()
+                    numberTheSetRows()
+                }
+            })
+        }
+
+        function deleteExercise(eid) {
+            const e = fitnessApp.exercises[eid]
+            if (!confirm(`Delete "${fitnessApp.movements[e.movement_id].name}" from "${fitnessApp.workouts[e.workout_id].name}"?`)) return
+            requestAction("delete", {delete: "exercise", id: eid}, (responseText) => {
+                console.log(responseText)
+                const r = JSON.parse(responseText)
+                console.log(r)
+                if (r.result) {
+                    const set_ids = r.data.set_ids
+                    const eid = r.data.eid
+                    const wid = r.data.wid
+                    const exercise_ids = r.data.exercise_ids
+
+                    for (sid in set_ids) delete fitnessApp.sets[sid]
+                    fitnessApp.workouts[wid].exercise_ids = exercise_ids
+                    delete fitnessApp.exercises[eid]
+
+                    if (workoutSetsForm.style.display == "flex") closeExercise()
+                    exerciseList.querySelector(`[exerciseid="${eid}"]`).remove()
+                }
+            })
+        }
+
+        function toggleSetTypeOptions() {
+            setTypeOptions.style.display == 'none' ? setTypeOptions.style.display = 'flex' : setTypeOptions.style.display = 'none'
+        }
+
+        function closeSetTypeOptions() {
+            if (![...setTypeOptions.children].includes(event.relatedTarget)) setTypeOptions.style.display = 'none'
+        }
+
+        function populateExerciseHistory(eid) {
+                const exercise = fitnessApp.exercises[eid]
+                exerciseList.innerHTML += `
+                    <div exerciseId=${eid}>
+                        <div>
+                            <div>${fitnessApp.movements[fitnessApp.exercises[eid].movement_id].name}</div>
+                            <div class="setsSummary">
+                                ${makeSetSummary(exercise)}
+                            </div>
+                        </div>
+                    </div>
+                `
+            }
+
+        function openMovement(mid) {
+            // console.log(fitnessApp.movements[2].name)
+            const historyDiv = document.createElement("div")
+            historyDiv.id = "historyDiv"
+            historyDiv.innerHTML = `
+                <h2 style="margin: 1rem 0;">${fitnessApp.movements[mid].name}</h2>
+                <div id="historyList" class="exerciseList"></div>
+                <div style="background: #444; width: 100%; display: flex; justify-content: center; align-items: center; padding: 10px 0; position: fixed; bottom: 0; border-top: #e0e0e0 1px solid;">
+                    <button class="btn longbtn" onclick="historyDiv.remove()">Back</button>
+                </div>
+            `
+            document.body.appendChild(historyDiv)
+            const eList = []
+            for (let eid in fitnessApp.exercises) {
+                const e = fitnessApp.exercises[eid]
+                if (e.movement_id == mid && e.set_ids.length > 0) eList.push({
+                    exercise: e,
+                    date: fitnessApp.workouts[e.workout_id].date
+                })
+            }
+            eList.sort((a,b) => {return a.date > b.date ? -1 : 1})
+            for (let i of eList) {
+                const date = i.date
+                const e = i.exercise
+                console.log(date)
+                console.log(e)
+                historyList.innerHTML += `
+                <div exerciseId=${e.id}>
+                    <div>
+                        <div>${getDisplayDate(date)}</div>
+                        <div class="setsSummary">
+                            ${makeSetSummary(e)}
+                        </div>
+                    </div>
+                </div>
+                `
+            }
+        }
+    </script>
+
+    <style>
+        #historyDiv {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            min-height: 100vh;
+            background: #272727;;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: #e0e0e0;
+        }
+        #historyDiv > .exerciseList > div {
+            cursor: default;
+        }
+        #workoutSetsForm {
+            background: #272727;
+            color: #e0e0e0;
+            display: none;
+            flex-direction: column;
+            /* justify-content: space-around; */
+            align-items: center;
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100vh;
+            width: 100vw;
+            row-gap: 1rem;
+            padding: 1rem 0 0 0;
+            overflow-y: scroll;
+        }
+        .setDisplay {
+            border: 1px solid #e0e0e0;
+            background: #444;
+        }
+        #setsHeader {
+            display: flex; padding: 10px;
+        }
+        table, th, td {
+            /* border: 1px solid white; */
+            border: 0;
+            border-collapse: collapse;
+            text-align: center;
+        }
+        table, thead, tbody, th, tr, td {height: fit-content;}
+        #workoutSetsForm > #sets_table {
+            max-width: 100vw;
+            width: 70%;
+            position: relative;
+        }
+        @media (max-width: 520px) {
+            #workoutSetsForm > #sets_table {width: 100%;}
+        }
+        #workoutSetsForm textarea {width: 90%}
+        #workoutSetsForm td {
+            padding: 0.5rem 0.5rem;
+        }
+        #workoutSetsForm > table tr {
+            background: #444;
+        }
+        #workoutSetsForm .tablebuffer, #workoutSetsForm .tablebuffer > td {border: 0; background: none;}
+        #workoutSetsForm .setnumbersrow {border-bottom: 0;}
+        #workoutSetsForm .setnotesrow {border-top: 0;}
+
+        .myoview, .dropview, .bilateralview, .unilateralview {display: none;}
+
+        #sets_table[movementtype='bilateral'] .bilateralview:not(.myoview,.dropview),
+        #sets_table[movementtype='unilateral'] .unilateralview:not(.myoview,.dropview),
+        #sets_table.drop .dropview:not(.unilateralview, .bilateralview)
+        {
+            display: revert;
+        }
+
+        #sets_table[movementtype='bilateral'].myo .bilateralview.myoview {display: revert;}
+        #sets_table[movementtype='unilateral'].myo .unilateralview.myoview {display: revert;}
+
+        #sets_table[movementtype='bilateral'].drop .bilateralview.dropview {display: revert;}
+        #sets_table[movementtype='unilateral'].drop .unilateralview.dropview {display: revert;}   
+
+        #setsTitle {
+            cursor: pointer;
+            margin-bottom: 10px;
+            text-align: center;
+        } 
+    </style>
+
+    <div id="workoutSetsForm">
+        <input type="hidden" id="currentExercise">
+        <input type="hidden" id="currentMovement">
+        <div style="display: flex; justify-content: end; width: 90%">
+            <button class="btn longbtn" id="eraseSetButton" onclick="deleteExercise(currentExercise.value)">Erase</button>
+        </div>
+        <div>
+            <h2 id="setsTitle" onclick="openMovement(currentMovement.value)"></h2>
+        </div>
+
+        <table id="sets_table">
+            <thead style="position: sticky; top: -1rem;">
+                <tr style="box-shadow: 0 -1px #e0e0e0 inset;">
+                    <td></td>
+                    <td class="dropview"></td>
+                    <td>Weight</td>
+                    <td class="bilateralview">Reps</td> <!-- bi reps -->
+                    <td class="unilateralview">Right Reps</td> <!-- uni reps -->
+                    <td class="unilateralview">Left Reps</td> <!-- uni reps -->
+                    <td class="bilateralview myoview">Myo</td> <!-- bi reps myo -->
+                    <td class="unilateralview myoview">Right Myo</td> <!-- uni reps myo -->
+                    <td class="unilateralview myoview">Left Myo</td> <!-- uni reps myo -->
+                    <td><div class="xbtn" style="height: 1px; visibility: hidden;"></div></td> 
+                    <!--
+                        added an xbtn so the header labels are already shifted left before first set row is added 
+                        xbtn is the biggest element in the right column, set height to 1px so header stays the same height
+                     -->
+                </tr>
+            </thead>
+        </table>
+
+        <script>
+            function snapToActiveSet(targettbody) {
+                const targetTop = targettbody.getBoundingClientRect().top
+                const targetBottom = targettbody.getBoundingClientRect().bottom
+
+                // if above view
+                const headerTop = sets_table.querySelector("thead").offsetHeight
+                if (targetTop-headerTop < 0) {
+                    workoutSetsForm.scrollBy(0,targetTop - headerTop)
+                }
+
+                // if below view
+                const footerTop = setFormFooter.getBoundingClientRect().top
+                if (targetBottom >= footerTop) {
+                    workoutSetsForm.scrollBy(0,targetBottom - footerTop)
+                }
+            }
+
+            function updateSetType(type) {
+                const exerciseId = Number(currentExercise.value)
+                updateRequest('exercises','set_type',type,exerciseId, () => {
+                    setTypeButton.attributes.type.value = type
+                    setTypeOptions.style.display = "none"
+                    displaySetType()
+                    populateExerciseList(fitnessApp.exercises[exerciseId].workout_id) 
+                })
+            }
+
+            window.addEventListener("resize", () => {
+                const setsFormOpen = workoutSetsForm.style.display == "flex"
+                const inputActive = ["input","textarea"].includes(document.activeElement.tagName.toLowerCase())
+                if (setsFormOpen && inputActive) snapToActiveSet(document.activeElement.parentElement.parentElement.parentElement)
+            })
+        </script>
+
+        <table id="templateSetContainer" style="display: none;">
+            <tbody>
+                <tr class="tablebuffer"><td colspan="4"></td></tr>
+                <tr class="setnumbersrow">
+                    <td class="setRowNumber" rowspan="3"></td>
+                    <td class="dropview"></td>
+                    <td><input type="tel" size="3" name="weight" onfocusin="" onblur="updateSet(this)" onkeydown="blurOnEnter()"></td> <!-- weight -->
+                    <td class="bilateralview"><input type="tel" size="3" name="reps" onblur="updateSet(this)" onkeydown="blurOnEnter()"></td> <!-- bi reps -->
+                    <td class="unilateralview"><input type="tel" size="3" name="reps_right" onblur="updateSet(this)" onkeydown="blurOnEnter()"></td> <!-- uni reps -->
+                    <td class="unilateralview"><input type="tel" size="3" name="reps_left" onblur="updateSet(this)" onkeydown="blurOnEnter()"></td> <!-- uni reps -->
+                    <td class="bilateralview myoview"><input type="tel" size="3" name="myo_reps" onblur="updateSet(this)" onkeydown="blurOnEnter()"></td>  <!-- bi reps myo -->
+                    <td class="unilateralview myoview"><input type="tel" size="3" name="myoreps_right" onblur="updateSet(this)" onkeydown="blurOnEnter()"></td>  <!-- uni reps myo -->
+                    <td class="unilateralview myoview"><input type="tel" size="3" name="myoreps_left" onblur="updateSet(this)" onkeydown="blurOnEnter()"></td>  <!-- uni reps myo -->
+                    <td rowspan="2">
+                        <div style="height: 100%; display: flex; flex-direction: column; justify-content: space-around; align-items: center;">
+                            <div onclick="alert('up')">&#9650;</div>
+                            <div onclick="alert('down')">&#9660;</div>
+                            <div class="xbtn" onclick="deleteSet(id)">
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+                <tr class="dropview">
+                    <td>Drop</td>
+                    <td><input type="tel" size="3" name="dropped_weight" onblur="updateSet(this)" onkeydown="blurOnEnter()"></td> <!-- weight -->
+                    <td class="bilateralview"><input type="tel" size="3" name="dropped_reps" onblur="updateSet(this)" onkeydown="blurOnEnter()"></td> <!-- bi reps -->
+                    <td class="unilateralview"><input type="tel" size="3" name="dropped_reps_right" onblur="updateSet(this)" onkeydown="blurOnEnter()"></td> <!-- uni reps -->
+                    <td class="unilateralview"><input type="tel" size="3" name="dropped_reps_left" onblur="updateSet(this)" onkeydown="blurOnEnter()"></td> <!-- uni reps -->
+                </tr>
+                <tr class="setnotesrow">
+                    <td colspan="3">
+                        <textarea placeholder="notes..." name="notes" onblur="updateSet(this)"></textarea>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div id="setFormFooter" style="display: flex; justify-content: center; column-gap: 3rem; width: 100%; background: #272727; padding: 5px 0; position: sticky; bottom: 0; border-top: 1px solid #e0e0e0;">
+            <button class="btn longbtn" onclick="closeExercise()">Back</button>
+            <button class="btn longbtn" onclick="addSet()">Add Set</button>
+            <div style="position: relative;">
+                <div id="setTypeOptions" style="position: absolute; bottom: calc(1.5rem + 10px); right: 0; white-space: nowrap; display: none; flex-direction: column; align-items: stretch;">
+                    <button class="longbtn btn" onclick="updateSetType('myo')">Myo Reps</button>
+                    <button class="longbtn btn" onclick="updateSetType('drop')">Dropped Reps</button>
+                    <button class="longbtn btn" onclick="updateSetType('regular')">Regular Reps</button>
+                </div>
+                <button class="btn longbtn" id="setTypeButton" onclick="toggleSetTypeOptions()" onblur="closeSetTypeOptions()"></button>
+            </div>
+        </div>
+    </div>

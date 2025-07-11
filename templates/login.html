@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+    <title>Fitness Tracker</title>
+    <meta name="viewport" content="viewport-fit=cover, width=device-width, initial-scale=1, maximum-scale=1">
+
+    <script>
+        function login() {
+            console.log('fired login')
+            const username = inputuser.value
+            const password = inputpassword.value
+
+            const req = new XMLHttpRequest()
+            req.onreadystatechange = function() {
+                if (this.readyState !== 4) return
+                console.log(this)
+                try {
+                    const reply = JSON.parse(this.responseText)
+                    if (reply.error) errorDiv.innerText = reply.error
+                    else if (reply.redirect) location.href = reply.redirect
+                } catch (err) {
+                    alert("Malformed response:\n"+this.responseText)
+                }
+            }
+            req.open("POST","login",true)
+            req.send(JSON.stringify({username: username, password: password}))
+
+        }
+    </script>
+</head>
+
+
+<body>
+    <h2 style="text-align: center;">Fitness Tracker Log In</h2>
+
+    <div style="display: flex; flex-direction: column; row-gap: 1rem; align-items: center;">
+        <div>
+            <label>User</label><br><input type="text" id="inputuser" onkeydown="if (event.key == 'Enter') login()">
+        </div>
+        <div>
+            <label>Password</label><br><input type="password" id="inputpassword" onkeydown="if (event.key == 'Enter') login()">
+        </div>
+        <div>
+            <button id="submitLogin" onclick="login()">Submit</button>
+        </div>
+        <div id="errorDiv" style="color: red; text-align: center;"></div>
+    </div>
+
+</body>
+
+
+</html>

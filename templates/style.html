@@ -1,0 +1,113 @@
+<style>
+    body {
+        padding: 0;
+        margin: 0;
+        display: flex;
+        height: 100vh;
+        width: 100vw;
+        flex-direction: column;
+        font-family: Arial, Helvetica, sans-serif;
+    }
+    select {
+        width: fit-content;
+    }
+    
+    h2 {margin: 0; padding: 0;}
+
+    div {box-sizing: border-box;}
+    
+    input, textarea, select {font-size: 16px;}
+    textarea {resize: none; height: 0;}
+    textarea::placeholder {color: #666;}
+
+    label {color: #e0e0e0;}
+    /* input {color: black;} */
+
+    .btn {
+        cursor: pointer;
+        font-size: 18px;
+        border: 1px solid rgb(130, 0, 0);
+        background: red;
+        color:#e0e0e0;
+        font-weight: bold;
+        border-radius: 7px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+    .squarebtn {
+        font-size: 2rem;
+        height: 3rem;
+        width: 3rem;
+    }
+    .longbtn {
+        min-width: 5rem;
+        padding: 5px;
+    }
+    .header-icon {
+        filter: invert(9%) sepia(94%) saturate(6884%) hue-rotate(3deg) brightness(104%) contrast(116%);
+        width: 50px;
+    }
+
+    .header {
+        display: flex;
+        width: 70%;
+        margin: 10px auto 20px auto;
+    }
+
+    #topmenu {
+        border-bottom: 1px solid black;
+        background: rgb(60, 60, 60);
+        display: flex;
+        justify-content: space-around;
+        column-gap: 1px;
+        align-items: stretch;
+        position: sticky;
+        top: 0;
+        box-shadow: 0 -2px #e0e0e0 inset;
+    }
+    #topmenu > div {
+        /* background: red; */
+        /* flex-grow: 1; */
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 5px;
+        cursor: pointer;
+        color: #e0e0e0;
+        /* background: white; */
+    }
+    .mainView {
+        display: none;
+        position: relative;
+        background: #272727;
+        height: 100%;
+        /* box-shadow: 2px 2px blue inset, -2px -2px blue inset; */
+        overflow-y: scroll;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .xbtn {
+        position: relative;
+        /* background: orange; */
+        /* background: green; */
+        display: inline-flex;
+        justify-content: center;
+        align-items: center;
+        position: relative;
+        width: 1.5rem;
+        height: 1.5rem;
+        cursor: pointer;
+        flex-shrink: 0;
+    }
+    .xbtn::before, .xbtn::after {
+        content: '';
+        position: absolute;
+        background: #e0e0e0;
+        transform: rotate(45deg);
+    }
+    .xbtn::before {width: 1.5rem; height: 0.3rem;}
+    .xbtn::after {width: 0.3rem; height: 1.5rem;}
+
+</style>

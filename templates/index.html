@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+
+
+<html>
+
+<head>
+    <title>Fitness Tracker</title>
+    <meta name="viewport" content="viewport-fit=cover, width=device-width, initial-scale=1, maximum-scale=1">
+
+    <script>
+        const getDisplayDate = (d) => {
+            const dayConverter = {0: "Sun", 1: "Mon", 2: "Tue", 3: "Wed", 4: "Thu", 5: "Fri", 6: "Sat"}
+            d = new Date(d)
+            return dayConverter[d.getDay()] + " "
+                + String(d.getFullYear()).slice(2) + "/"
+                + String((d.getMonth()+1)).padStart(2,"0") + "/"
+                + String(d.getDate()).padStart(2,"0") + ' '
+                + String(d.getHours()).padStart(2,"0") + ":" +
+                String(d.getMinutes()).padStart(2,"0")
+        }
+        function blurOnEnter() {if (event.key == 'Enter') document.activeElement.blur()}
+
+        function openView(view) {
+            for (let v of document.querySelectorAll(".mainView")) v.style.display = null
+            fitnessApp.openView = view
+            document.querySelector("#"+view).style.display = "flex"
+            localStorage.openView = view
+        }
+
+        function updateRequest(update, field, value, id, callback=null) {
+            if (field == 'set_type' && !['regular','drop','myo'].includes(value)) return
+            const e = {
+                update: update,
+                fields: {[field]: value},
+                id: id
+            }
+            requestAction("update", e, (responseText) => {
+                const result = JSON.parse(responseText)
+                if (result.result) {
+                    fitnessApp[update][id][field] = value
+                    if (callback) callback()
+                }
+            })
+        }
+
+        async function requestAction(action, payload, callback=null) {
+            if (!["new", "update", "delete"].includes(action)) {
+                alert("Invalid action")
+                return
+            }
+
+            const res = await fetch(action, {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify(payload)
+            })
+            const resText = await res.text()
+            if (res.status === 200) {
+                console.log(resText)
+                if (callback) callback(resText)
+            } else {
+                alert(res.status+"\n"+resText)
+            }
+        }
+
+        window.fitnessApp = {}
+
+        const addTextareaResizing = () => {
+            document.body.addEventListener('input', function (e) {
+                if (e.target.tagName === "TEXTAREA") {
+                    e.target.style.height = 0;
+                    e.target.style.height = e.target.scrollHeight+'px';
+                }
+            }
+        )}
+    </script>
+
+
+</head>
+
+
+<body onload="addTextareaResizing()">
+    <script>
+        if (!localStorage.openView) localStorage.openView = "workoutLog"
+        openView(localStorage.openView)
+    </script>
+
+    <% include style.html %>
+
+    <div id="topmenu"></div>
+
+    <% include exerciseLibrary.html %>
+    <% include workoutLog.html %>
+
+    <script>
+
+        for (let v of document.querySelectorAll(".mainView")) {
+            topmenu.innerHTML += `<div onclick=openView('`+v.id+`')>`+v.attributes.viewtitle.value+`</div>`;
+        }
+
+        document.querySelector("#"+fitnessApp.openView).style.display = "flex"
+    </script>
+
+    
+
+</body>
+
+
+
+</html>
