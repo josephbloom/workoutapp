@@ -738,7 +738,7 @@
             historyDiv.innerHTML = `
                 <h2 style="margin: 1rem 0;">${fitnessApp.movements[mid].name}</h2>
                 <div id="historyList" class="exerciseList"></div>
-                <div style="background: #444; width: 100%; display: flex; justify-content: center; align-items: center; padding: 10px 0; position: fixed; bottom: 0; border-top: #e0e0e0 1px solid;">
+                <div style="background: #444; width: 100%; display: flex; justify-content: center; align-items: center; padding: 10px 0; position: sticky; bottom: 0; border-top: #e0e0e0 1px solid;">
                     <button class="btn longbtn" onclick="historyDiv.remove()">Back</button>
                 </div>
             `
@@ -784,9 +784,8 @@
             align-items: center;
             color: #e0e0e0;
         }
-        #historyDiv > .exerciseList > div {
-            cursor: default;
-        }
+        #historyDiv > .exerciseList { padding-bottom: 2rem; }
+        #historyDiv > .exerciseList > div { cursor: default; }
         #workoutSetsForm {
             background: #272727;
             color: #e0e0e0;
