@@ -1,16 +1,9 @@
 const dotenv = require('dotenv').config() // for .env file
 const fs = require('fs')
 const mysql = require('mysql2/promise')
-let http
-process.env.DEV === "true" ? http = require('http') : http = require("https")
-
 const rp = require('./RenderPage.js')
 const sessionsProcess = require('./loginProcess.js')
 const dbService = require('./DBService.js')
-
-
-console.log("dev mode is "+(process.env.DEV === "true"))
-console.log(process.env.DEV)
 
 const exerciseSqlCreds = {
     host: process.env.MYSQL_HOST,
@@ -20,11 +13,17 @@ const exerciseSqlCreds = {
     timezone: process.env.MYSQL_TIMEZONE
 }
 
+let http
 const options = {}
 
-if (process.env.DEV !== "true") {
+if (process.env.DEV === "true") {
+    http = require('http')
+    console.log("DEVMODE is ON. HTTPS is not being used.")
+} else {
+    http = require("https")
     options.key = fs.readFileSync('keys/private-key.pem')
     options.cert = fs.readFileSync('keys/certificate.pem')
+    console.log("DEVMODE is OFF. HTTPS is being used.")
 }
 
 
