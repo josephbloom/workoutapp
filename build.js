@@ -19,23 +19,33 @@ const exerciseUser = "exercise_user2"
 const loginUser = "login_user2"
 const db = "workouts2"
 
+process.stdout.write("Starting...\n")
+
 async function getMySQLCreds() {
     console.log("First, enter MySQL credentials so users and databases may be added.\n")
-    mysqlHost = await ask('What is the MySQL host? ')
-    mysqlUser = await ask('What is the MySQL account username? ')
-    mysqlPassword = await ask("What is the MySQL password? ")
+    mysqlHost = await askQuestion(false, 'What is the MySQL host? ')
+    mysqlUser = await askQuestion(false, 'What is the MySQL account username? ')
+    mysqlPassword = await askQuestion(true, "What is the MySQL password? [passwords are hidden] ")
+    console.log()
 }
 
 async function getMySQLUserCreds() {
     console.log("\nNext, passwords for the two MySQL application users must be set. One user is for logging in, the other is for accessing the exercise data.")
-    loginPassword = await ask('What is the password for the MySQL login account? ')
-    exercisePassword = await ask('What is the password for the MySQL exercise account? ')
+    loginPassword = await askQuestion(true, 'What is the password for the MySQL login account? ')
+    console.log()
+    exercisePassword = await askQuestion(true, "What is the password for the MySQL exercise account? ")
 }
 
 async function getUserCreds() {
     console.log("\nFinally, make credentials for the account that will log into the application.")
-    username = await ask('What is the username for the application user? ')
-    password = await ask('What is the password for the application user? ')
+    username = await askQuestion(false, 'What is the username for the application user? ')
+    password = await askQuestion(true, 'What is the password for the application user? ')
+}
+
+async function askQuestion (hidden, message) {
+    rl.stdoutMuted = hidden
+    rl.query = message
+    return await ask(message)
 }
 
 const makeExerciseUser = () => {
@@ -65,8 +75,34 @@ function ask(question) {
   });
 }
 
+rl.stdoutMuted = false
+rl.startMute = false
+
+rl._writeToOutput = function _writeToOutput(stringToWrite) {
+    if (rl.stdoutMuted) {
+        // let anim
+        // switch (rl.line.length%4) {
+        //     case 0: anim = "|"; break;
+        //     case 1: anim = "/"; break;
+        //     case 2: anim = "—"; break;
+        //     case 3: anim = "\\"; break;
+        // }
+        // rl.output.write("\x1B[2K\x1B[200D"+rl.query+"["+anim+"]")
+        rl.output.write("\x1B[2K\x1B[200D"+rl.query)
+    } else {
+        rl.output.write(stringToWrite)
+    }
+};
+
 async function main() {
+
     await getMySQLCreds()
+
+    // console.log(mysqlHost)
+    // console.log(mysqlUser)
+    // console.log(mysqlPassword)
+    // console.log("Finish early!")
+    // process.exit(0)
 
     const sqlCreds = {
         host: mysqlHost,
@@ -118,7 +154,7 @@ async function main() {
     await getUserCreds()
     rl.close()
 
-    console.log("Adding application user account...")
+    console.log("\n\nAdding application user account...")
     const appUserResults = await mysqlCon.execute(`insert into ${db}.users (username, hash) values (?,?)`,[username, await argon2.hash(password)])
     // console.log(appUserResults)
     await mysqlCon.end()
